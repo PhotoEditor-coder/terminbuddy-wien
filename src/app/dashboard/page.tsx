@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { signOut } from './actions'
-import { Role } from '@prisma/client'
+import { Role } from '@/generated/prisma/enums' // <-- aquí
 
 export default async function DashboardPage({ searchParams }: { searchParams: { error?: string } }) {
   const supabase = await createClient()
@@ -15,7 +15,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
     )
   }
 
-  // Asegura Profile (por si el usuario ya existía en Auth)
   const profile = await prisma.profile.upsert({
     where: { id: user.id },
     update: { email: user.email ?? '' },
@@ -46,11 +45,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: { 
       {profile.role === Role.BUSINESS_ADMIN && !business && (
         <div className="rounded-xl border p-4 space-y-3">
           <h2 className="font-medium">Create your business</h2>
-          <form action={/* server action */ undefined} className="space-y-2">
-            <p className="text-sm text-gray-600">
-              (Ya lo creamos en el signup si marcaste admin; esto solo aparece si no existe.)
-            </p>
-          </form>
+          <p className="text-sm text-gray-600">
+            (Ya lo creamos en el signup si marcaste admin; esto solo aparece si no existe.)
+          </p>
         </div>
       )}
 

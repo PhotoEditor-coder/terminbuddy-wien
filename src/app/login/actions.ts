@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
-import { Role } from '@prisma/client'
+import { Role } from '@/generated/prisma/enums' // <- seguro aunque no tengas index.ts
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get('email') || '').trim()
@@ -15,11 +15,10 @@ export async function signIn(formData: FormData) {
 
   const user = data.user
   if (user) {
-    // Garantiza que exista Profile aunque el usuario venga “solo de Auth”
     await prisma.profile.upsert({
       where: { id: user.id },
-      update: { email },
-      create: { id: user.id, email, role: Role.CUSTOMER },
+      update: { email: email || user.email || '' },
+      create: { id: user.id, email: email || user.email || '', role: Role.CUSTOMER },
     })
   }
 
@@ -44,14 +43,12 @@ export async function signUp(formData: FormData) {
   if (user) {
     const role = isBusinessAdmin ? Role.BUSINESS_ADMIN : Role.CUSTOMER
 
-    // Profile
     await prisma.profile.upsert({
       where: { id: user.id },
-      update: { email, role },
-      create: { id: user.id, email, role },
+      update: { email: email || user.email || '', role },
+      create: { id: user.id, email: email || user.email || '', role },
     })
 
-    // Si es admin, crea su Business + membership (solo si aún no tiene)
     if (role === Role.BUSINESS_ADMIN) {
       const hasMembership = await prisma.businessMember.findFirst({
         where: { profileId: user.id },
@@ -71,7 +68,6 @@ export async function signUp(formData: FormData) {
     }
   }
 
-  // Si tienes “email confirmation” activado, quizá NO haya sesión aún
   if (!data.session) {
     redirect(`/login?msg=${encodeURIComponent('Check your email to confirm your account, then sign in.')}`)
   }
