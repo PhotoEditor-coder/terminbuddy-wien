@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+  COMPLETED
+}
+
+model Profile {
+  id        String   @id @db.Uuid
+  email     String   @unique
+  role      Role     @default(OWNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businesses Business[] @relation("BusinessOwner")
+}
+
+model Business {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @db.Uuid
+  name      String
+  timezone  String   @default("Europe/Vienna")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner        Profile       @relation("BusinessOwner", fields: [ownerId], references: [id])
+  clients      Client[]
+  appointments Appointment[]
+
+  @@index([ownerId])
+}
+
+model Client {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  name       String
+  email      String?
+  phone      String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id])
+  appointments Appointment[]
+
+  @@index([businessId])
+}
+
+model Appointment {
+  id         String            @id @default(uuid()) @db.Uuid
+  businessId String            @db.Uuid
+  clientId   String            @db.Uuid
+  startsAt   DateTime
+  endsAt     DateTime
+  status     AppointmentStatus @default(BOOKED)
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id])
+  client   Client   @relation(fields: [clientId], references: [id])
+
+  @@index([businessId, startsAt])
+  @@index([clientId])
+}
