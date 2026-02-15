@@ -35,9 +35,10 @@ model Business {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner        Profile       @relation("BusinessOwner", fields: [ownerId], references: [id])
-  clients      Client[]
-  appointments Appointment[]
+  owner         Profile          @relation("BusinessOwner", fields: [ownerId], references: [id])
+  clients       Client[]
+  appointments  Appointment[]
+  notifications NotificationLog[]
 
   @@index([ownerId])
 }
@@ -69,9 +70,26 @@ model Appointment {
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
-  business Business @relation(fields: [businessId], references: [id])
-  client   Client   @relation(fields: [clientId], references: [id])
+  business      Business          @relation(fields: [businessId], references: [id])
+  client        Client            @relation(fields: [clientId], references: [id])
+  notifications NotificationLog[]
 
   @@index([businessId, startsAt])
   @@index([clientId])
+}
+
+model NotificationLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  businessId    String   @db.Uuid
+  appointmentId String   @db.Uuid
+  kind          String   // "CONFIRMATION" | "REMINDER_24H" | "REMINDER_2H"
+  toEmail       String?
+  sentAt        DateTime @default(now())
+
+  business    Business    @relation(fields: [businessId], references: [id])
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+
+  @@unique([appointmentId, kind])
+  @@index([businessId, sentAt])
+  @@index([appointmentId])
 }
