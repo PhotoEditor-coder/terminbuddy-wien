@@ -3,7 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import type { AppointmentStatus } from "@prisma/client";
+import type { Appointment } from "@prisma/client";
+
+type AppointmentStatus = Appointment["status"];
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
