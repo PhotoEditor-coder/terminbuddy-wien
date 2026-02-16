@@ -1,31 +1,96 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-export function NowLine() {
-    const [top, setTop] = useState<number>(0);
+type NowLineProps = {
+    dayISO: string;      // "YYYY-MM-DD"
+    timeZone: string;    // e.g. "Europe/Vienna"
+    startHour: number;   // e.g. 6
+    endHour: number;     // e.g. 22
+    slotH: number;       // px por slot (compat)
+    gridH: number;       // px total del grid
+};
+
+function getTZNowParts(timeZone: string) {
+    const now = new Date();
+    const dtf = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
+    const parts = dtf.formatToParts(now);
+    const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+
+    return {
+        dayISO: `${pick("year")}-${pick("month")}-${pick("day")}`,
+        hour: Number(pick("hour") || "0"),
+        minute: Number(pick("minute") || "0"),
+    };
+}
+
+export function NowLine({
+                            dayISO,
+                            timeZone,
+                            startHour,
+                            endHour,
+                            slotH, // eslint-disable-line @typescript-eslint/no-unused-vars
+                            gridH,
+                        }: NowLineProps) {
+    const [top, setTop] = useState<number | null>(null);
+
+    const minutesRange = useMemo(() => {
+        const startMin = startHour * 60;
+        const endMin = endHour * 60;
+        return { startMin, endMin, totalMin: Math.max(1, endMin - startMin) };
+    }, [startHour, endHour]);
 
     useEffect(() => {
         const tick = () => {
-            const now = new Date();
-            const minutes = now.getHours() * 60 + now.getMinutes();
-            // Ajusta este cálculo a tu grid real (ej: altura de día)
-            setTop(minutes);
+            const now = getTZNowParts(timeZone);
+
+            // Solo hoy (en TZ del negocio)
+            if (now.dayISO !== dayISO) {
+                setTop(null);
+                return;
+            }
+
+            const currentMin = now.hour * 60 + now.minute;
+            if (currentMin < minutesRange.startMin || currentMin > minutesRange.endMin) {
+                setTop(null);
+                return;
+            }
+
+            const offsetMin = currentMin - minutesRange.startMin;
+            const ratio = offsetMin / minutesRange.totalMin;
+
+            const y = Math.round(ratio * gridH);
+            setTop(y);
         };
 
         tick();
-        const id = setInterval(tick, 60_000);
+        const id = setInterval(tick, 30_000);
         return () => clearInterval(id);
-    }, []);
+    }, [dayISO, timeZone, gridH, minutesRange]);
+
+    if (top === null) return null;
 
     return (
         <div
+            aria-hidden="true"
             style={{
                 position: "absolute",
                 left: 0,
                 right: 0,
                 top,
                 height: 2,
+                zIndex: 20,
+                pointerEvents: "none",
+                opacity: 0.9,
             }}
         />
     );
