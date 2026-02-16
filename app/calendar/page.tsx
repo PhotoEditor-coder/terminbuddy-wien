@@ -3,7 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
-import { NowLine } from "./NowLine";
+import { NowLine } from "./_components/NowLine";
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
