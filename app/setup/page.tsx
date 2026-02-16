@@ -7,14 +7,15 @@ export const dynamic = "force-dynamic";
 
 export default async function SetupPage() {
     const supabase = await createClient();
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
+    const { data, error } = await supabase.auth.getUser();
 
-    if (!user) redirect("/login");
+    if (error || !data?.user) redirect("/login");
+
+    const userId = data.user.id;
 
     // Si ya existe un Business, no vuelvas a crear otro
     const existing = await prisma.business.findFirst({
-        where: { ownerId: user.id },
+        where: { ownerId: userId },
         select: { id: true },
     });
 
@@ -23,14 +24,29 @@ export default async function SetupPage() {
     async function createBusiness(formData: FormData) {
         "use server";
 
+        // Re-validar auth dentro de la Server Action (recomendado)
+        const supabase = await createClient();
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data?.user) redirect("/login");
+
+        const ownerId = data.user.id;
+
         const name = String(formData.get("name") || "").trim();
         const timezone = String(formData.get("timezone") || "Europe/Vienna").trim();
 
         if (!name) return;
 
+        // Evitar duplicados si alguien dispara la action dos veces
+        const already = await prisma.business.findFirst({
+            where: { ownerId },
+            select: { id: true },
+        });
+
+        if (already) redirect("/dashboard");
+
         await prisma.business.create({
             data: {
-                ownerId: user.id,
+                ownerId,
                 name,
                 timezone,
             },
