@@ -1,5 +1,6 @@
 // app/appointments/[id]/ics/route.ts
 import { redirect } from "next/navigation";
+import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
@@ -68,12 +69,17 @@ function buildICS(lines: string[]) {
     return folded.join("\r\n") + "\r\n";
 }
 
-export async function GET(_req: Request, ctx: { params: { id: string } }) {
+export async function GET(
+    _req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id } = await params;
+
     const user = await getAuthedUserOrRedirect();
     const business = await getBusinessForUserOrRedirect(user.id);
 
     const appt = await prisma.appointment.findFirst({
-        where: { id: ctx.params.id, businessId: business.id },
+        where: { id, businessId: business.id },
         include: { client: { select: { name: true, email: true, phone: true } } },
     });
 
