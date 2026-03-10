@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* ── Viennese Art Déco palette ──────────────────────────────── */
+:root {
+  --bg:        #F7F4EF;
+  --bg-card:   #FFFFFF;
+  --fg:        #1A1208;
+  --muted:     #7A6F5E;
+  --accent:    #C8922A;
+  --accent-lt: #E8C97A;
+  --border:    #DDD8CE;
+  --danger:    #B8442A;
+  --success:   #3A6B42;
+
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #0F0D09;
+    --bg-card:   #1A1610;
+    --fg:        #F0EBE0;
+    --muted:     #8A8070;
+    --accent:    #D4A030;
+    --accent-lt: #8C6820;
+    --border:    #2E2820;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Ornamental divider ──────────────────────────────────────── */
+.ornament {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent);
+  font-size: 18px;
+  letter-spacing: 4px;
+}
+.ornament::before,
+.ornament::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+}
+
+/* ── Subtle noise texture overlay ───────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
