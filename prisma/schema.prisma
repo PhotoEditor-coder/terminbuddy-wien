@@ -1,95 +1,172 @@
+// TerminBuddy Wien — Prisma Schema
+// Full appointment booking system
+
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
 enum Role {
-  OWNER
+  CUSTOMER
+  BUSINESS_ADMIN
   STAFF
 }
 
 enum AppointmentStatus {
-  BOOKED
+  PENDING
+  CONFIRMED
   CANCELLED
   COMPLETED
+  NO_SHOW
 }
+
+enum WeekDay {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+// ─────────────────────────────────────────────
+// User / Auth
+// ─────────────────────────────────────────────
 
 model Profile {
-  id        String   @id @db.Uuid
+  id        String   @id  // matches Supabase auth.users.id (UUID)
   email     String   @unique
-  role      Role     @default(OWNER)
+  name      String?
+  phone     String?
+  avatarUrl String?
+  role      Role     @default(CUSTOMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  businesses Business[] @relation("BusinessOwner")
+  memberships  BusinessMember[]
+  appointments Appointment[]    @relation("CustomerAppointments")
+
+  @@index([email])
+  @@index([role])
 }
+
+// ─────────────────────────────────────────────
+// Business
+// ─────────────────────────────────────────────
 
 model Business {
-  id        String   @id @default(uuid()) @db.Uuid
-  ownerId   String   @db.Uuid
-  name      String
-  timezone  String   @default("Europe/Vienna")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  address     String?
+  district    String?
+  phone       String?
+  website     String?
+  timezone    String   @default("Europe/Vienna")
+  locale      String   @default("de")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  owner         Profile          @relation("BusinessOwner", fields: [ownerId], references: [id])
-  clients       Client[]
-  appointments  Appointment[]
-  notifications NotificationLog[]
+  members      BusinessMember[]
+  services     Service[]
+  appointments Appointment[]
+  openingHours OpeningHours[]
 
-  @@index([ownerId])
+  @@index([slug])
+  @@index([district])
+  @@index([isActive])
 }
 
-model Client {
-  id         String   @id @default(uuid()) @db.Uuid
-  businessId String   @db.Uuid
-  name       String
-  email      String?
-  phone      String?
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model BusinessMember {
+  id         String   @id @default(cuid())
+  businessId String
+  profileId  String
+  role       Role     @default(STAFF)
+  joinedAt   DateTime @default(now())
 
-  business     Business      @relation(fields: [businessId], references: [id])
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  profile  Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, profileId])
+  @@index([businessId])
+  @@index([profileId])
+}
+
+// ─────────────────────────────────────────────
+// Services & Availability
+// ─────────────────────────────────────────────
+
+model Service {
+  id           String   @id @default(cuid())
+  businessId   String
+  name         String
+  description  String?
+  durationMins Int      @default(60)
+  price        Decimal? @db.Decimal(10, 2)
+  currency     String   @default("EUR")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointments Appointment[]
 
   @@index([businessId])
+  @@index([businessId, isActive])
 }
+
+model OpeningHours {
+  id         String  @id @default(cuid())
+  businessId String
+  weekDay    WeekDay
+  openTime   String
+  closeTime  String
+  isClosed   Boolean @default(false)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, weekDay])
+  @@index([businessId])
+}
+
+// ─────────────────────────────────────────────
+// Appointments
+// ─────────────────────────────────────────────
 
 model Appointment {
-  id         String            @id @default(uuid()) @db.Uuid
-  businessId String            @db.Uuid
-  clientId   String            @db.Uuid
+  id         String            @id @default(cuid())
+  businessId String
+  serviceId  String
+  customerId String
+  staffId    String?
+
   startsAt   DateTime
   endsAt     DateTime
-  status     AppointmentStatus @default(BOOKED)
+  status     AppointmentStatus @default(PENDING)
   notes      String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  staffNotes String?
 
-  business      Business          @relation(fields: [businessId], references: [id])
-  client        Client            @relation(fields: [clientId], references: [id])
-  notifications NotificationLog[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id])
+  customer Profile  @relation("CustomerAppointments", fields: [customerId], references: [id])
 
   @@index([businessId, startsAt])
-  @@index([clientId])
-}
-
-model NotificationLog {
-  id            String   @id @default(uuid()) @db.Uuid
-  businessId    String   @db.Uuid
-  appointmentId String   @db.Uuid
-  kind          String   // "CONFIRMATION" | "REMINDER_24H" | "REMINDER_2H"
-  toEmail       String?
-  sentAt        DateTime @default(now())
-
-  business    Business    @relation(fields: [businessId], references: [id])
-  appointment Appointment @relation(fields: [appointmentId], references: [id])
-
-  @@unique([appointmentId, kind])
-  @@index([businessId, sentAt])
-  @@index([appointmentId])
+  @@index([customerId, startsAt])
+  @@index([businessId, status])
+  @@index([startsAt])
 }

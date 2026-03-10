@@ -1,30 +1,27 @@
-import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from '@/generated/prisma'
 
-const globalForPrisma = globalThis as unknown as {
-    prisma?: PrismaClient;
-    pgPool?: Pool;
-};
+// ─────────────────────────────────────────────────────────────────
+// Singleton pattern: reuse PrismaClient across hot-reloads in dev
+// ─────────────────────────────────────────────────────────────────
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) throw new Error("DATABASE_URL missing");
+declare global {
+  // eslint-disable-next-line no-var
+  var __prisma: PrismaClient | undefined
+}
 
-const pool =
-    globalForPrisma.pgPool ??
-    new Pool({
-        connectionString,
-        ssl: { rejectUnauthorized: false },
-        max: 5,
-    });
+function createPrismaClient() {
+  return new PrismaClient({
+    log:
+      process.env.NODE_ENV === 'development'
+        ? ['query', 'error', 'warn']
+        : ['error'],
+    errorFormat: 'pretty',
+  })
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.pgPool = pool;
+export const prisma: PrismaClient =
+  globalThis.__prisma ?? createPrismaClient()
 
-export const prisma =
-    globalForPrisma.prisma ??
-    new PrismaClient({
-        adapter: new PrismaPg(pool),
-        log: ["error", "warn"],
-    });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.__prisma = prisma
+}
